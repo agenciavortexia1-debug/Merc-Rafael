@@ -101,16 +101,16 @@ const Sidebar: React.FC<SidebarProps> = ({
             </button>
           ))}
 
-          {/* Botão de QR Code na Sidebar conforme solicitado */}
+          {/* Botão de QR Code na Sidebar (Posição Azul solicitada) */}
           {role !== 'CLIENTE' && (
             <button
               onClick={() => setIsQRModalOpen(true)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-emerald-600/20 text-emerald-400 hover:text-emerald-300 ${isCollapsed && !isMobileOpen ? 'justify-center px-0' : ''}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all bg-white/5 hover:bg-emerald-600/20 text-emerald-400 hover:text-emerald-300 ${isCollapsed && !isMobileOpen ? 'justify-center px-0' : ''}`}
             >
               <span className="shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1a2 2 0 0 1 2 2v1"/><path d="M21 12v.01"/><path d="M17 21h.01"/></svg>
               </span>
-              {(!isCollapsed || isMobileOpen) && <span className="font-black text-[10px] uppercase tracking-widest">Acesso Cliente</span>}
+              {(!isCollapsed || isMobileOpen) && <span className="font-black text-[10px] uppercase tracking-widest">QR CODE CLIENTE</span>}
             </button>
           )}
         </nav>

@@ -333,15 +333,6 @@ const App: React.FC = () => {
           ))}
         </div>
       )}
-      
-      {role === 'CLIENTE' && (
-        <button 
-          onClick={handleLogout}
-          className="fixed bottom-6 right-6 bg-slate-900 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-2xl z-50 border-b-4 border-black active:scale-95"
-        >
-          Sair do Portal
-        </button>
-      )}
     </div>
   );
 };
