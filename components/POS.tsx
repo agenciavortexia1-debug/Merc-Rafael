@@ -139,7 +139,6 @@ const POS: React.FC<POSProps> = ({ products, customers, onCompleteSale, onLogout
   };
 
   const handleImportOrder = (order: Order) => {
-    // Verificar se todos os itens do pedido online ainda têm estoque
     const outOfStockItems = order.items.filter(item => {
       const p = products.find(prod => prod.id === item.productId);
       return !p || p.stock <= 0;
@@ -165,17 +164,20 @@ const POS: React.FC<POSProps> = ({ products, customers, onCompleteSale, onLogout
 
       {/* PDV Header */}
       <div className="flex items-center bg-white p-3 lg:p-5 rounded-3xl lg:rounded-[2rem] border-2 border-slate-100 shadow-sm gap-3 mb-4 sticky top-0 z-[100] mx-2 lg:mx-0">
-        <button 
-          onClick={() => setIsOrdersOpen(true)}
-          className={`p-4 rounded-2xl relative transition-all ${pendingCount > 0 ? 'bg-amber-100 text-amber-600 animate-pulse' : 'bg-slate-50 text-slate-400'}`}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-          {pendingCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-rose-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black border-2 border-white shadow-lg">
-              {pendingCount}
-            </span>
-          )}
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => setIsOrdersOpen(true)}
+            title="Listas de Clientes"
+            className={`p-4 rounded-2xl relative transition-all ${pendingCount > 0 ? 'bg-amber-100 text-amber-600 animate-pulse' : 'bg-slate-50 text-slate-400'}`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+            {pendingCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-rose-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black border-2 border-white shadow-lg">
+                {pendingCount}
+              </span>
+            )}
+          </button>
+        </div>
 
         <div className="flex-1 relative">
           <form onSubmit={(e) => { e.preventDefault(); handleSearch(scannerValue); }}>

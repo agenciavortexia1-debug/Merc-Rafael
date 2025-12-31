@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { View, UserRole } from '../types';
 import { ICONS } from '../constants';
 import Logo from './Logo';
@@ -25,6 +25,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   isMobileOpen,
   onCloseMobile
 }) => {
+  const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+
   const sellerItems: { id: View; label: string; icon: React.ReactNode }[] = [
     { id: 'POS', label: 'Vender (PDV)', icon: <ICONS.POS /> },
   ];
@@ -48,6 +50,9 @@ const Sidebar: React.FC<SidebarProps> = ({
     ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
     ${isCollapsed ? 'w-20' : 'w-60'}
   `;
+
+  const customerPortalUrl = `${window.location.origin}${window.location.pathname}?view=customer`;
+  const qrCodeImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(customerPortalUrl)}`;
 
   return (
     <>
@@ -95,6 +100,19 @@ const Sidebar: React.FC<SidebarProps> = ({
               {(!isCollapsed || isMobileOpen) && <span className="font-bold text-sm">{item.label}</span>}
             </button>
           ))}
+
+          {/* Botão de QR Code na Sidebar conforme solicitado */}
+          {role !== 'CLIENTE' && (
+            <button
+              onClick={() => setIsQRModalOpen(true)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-emerald-600/20 text-emerald-400 hover:text-emerald-300 ${isCollapsed && !isMobileOpen ? 'justify-center px-0' : ''}`}
+            >
+              <span className="shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1a2 2 0 0 1 2 2v1"/><path d="M21 12v.01"/><path d="M17 21h.01"/></svg>
+              </span>
+              {(!isCollapsed || isMobileOpen) && <span className="font-black text-[10px] uppercase tracking-widest">Acesso Cliente</span>}
+            </button>
+          )}
         </nav>
 
         <div className="p-4 border-t border-slate-800">
@@ -107,6 +125,38 @@ const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Modal de QR Code Centralizado */}
+      {isQRModalOpen && (
+        <div className="fixed inset-0 z-[2000] bg-slate-950/95 backdrop-blur-xl flex items-center justify-center p-6" onClick={() => setIsQRModalOpen(false)}>
+          <div className="bg-white rounded-[3rem] w-full max-w-sm p-10 flex flex-col items-center space-y-8 animate-in zoom-in-90 duration-300" onClick={e => e.stopPropagation()}>
+            <div className="w-full flex justify-between items-center">
+               <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">PORTAL DO CLIENTE</h3>
+               <button onClick={() => setIsQRModalOpen(false)} className="p-3 bg-slate-100 rounded-2xl text-slate-400 hover:text-rose-500 transition-colors">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+               </button>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-[2.5rem] shadow-inner border-2 border-slate-100">
+               <img src={qrCodeImageUrl} alt="QR Code Portal do Cliente" className="w-64 h-64 rounded-2xl mix-blend-multiply" />
+            </div>
+
+            <div className="text-center space-y-3">
+               <p className="font-black text-slate-900 uppercase text-xs tracking-widest">Aponte a câmera aqui</p>
+               <p className="text-[10px] text-slate-400 font-bold uppercase leading-relaxed">
+                 O CLIENTE TERÁ ACESSO APENAS <br/> AO PORTAL DE COMPRAS DELE
+               </p>
+            </div>
+
+            <button 
+              onClick={() => setIsQRModalOpen(false)}
+              className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest border-b-4 border-black active:scale-95 transition-all"
+            >
+              Fechar Janela
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 };

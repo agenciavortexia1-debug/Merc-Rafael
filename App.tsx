@@ -27,6 +27,16 @@ const App: React.FC = () => {
   const [showPasswordInput, setShowPasswordInput] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
 
+  // Verificação de acesso direto via QR Code para clientes
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('view') === 'customer') {
+      setRole('CLIENTE');
+      setAppState('APP_MAIN');
+      setCurrentView('CUSTOMER_PORTAL');
+    }
+  }, []);
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -89,8 +99,6 @@ const App: React.FC = () => {
       setSales(mappedSales);
     } catch (err: any) {
       console.error("Erro crítico no fetchData:", err.message);
-      // Não alertamos aqui para não travar a UI se o banco estiver vazio, 
-      // mas o estado de loading terminará.
     } finally {
       setLoading(false);
     }
@@ -217,6 +225,10 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
+    // Ao sair, limpamos o parâmetro da URL para não prender o próximo login no portal do cliente
+    if (window.location.search.includes('view=customer')) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
     setAppState('LOGIN_SCREEN');
     setRole('VENDEDOR');
     setCurrentView('POS');
@@ -237,31 +249,26 @@ const App: React.FC = () => {
 
   if (appState === 'LOGIN_SCREEN') {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-8">
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-8 text-center">
         <Logo size="xl" className="mb-16" light />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-4xl">
-          <button onClick={() => { setRole('VENDEDOR'); setAppState('APP_MAIN'); setCurrentView('POS'); }} className="bg-white/10 backdrop-blur-lg border border-white/10 p-10 rounded-[2.5rem] hover:bg-white/20 transition-all text-center">
-            <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-2xl">
+          <button onClick={() => { setRole('VENDEDOR'); setAppState('APP_MAIN'); setCurrentView('POS'); }} className="bg-white/10 backdrop-blur-lg border border-white/10 p-10 rounded-[2.5rem] hover:bg-white/20 transition-all text-center group">
+            <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
             </div>
-            <h3 className="text-xl font-black text-white uppercase tracking-tighter">Caixa</h3>
+            <h3 className="text-xl font-black text-white uppercase tracking-tighter">Entrar no Caixa</h3>
           </button>
           
-          <button onClick={() => { setRole('CLIENTE'); setAppState('APP_MAIN'); }} className="bg-emerald-500/20 backdrop-blur-lg border border-emerald-500/30 p-10 rounded-[2.5rem] hover:bg-emerald-500/30 transition-all text-center">
-            <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            </div>
-            <h3 className="text-xl font-black text-white uppercase tracking-tighter">Sou Cliente</h3>
-            <p className="text-[10px] font-bold text-emerald-300 uppercase mt-2">Fazer Lista de Casa</p>
-          </button>
-
-          <button onClick={() => setShowPasswordInput(true)} className="bg-white/10 backdrop-blur-lg border border-white/10 p-10 rounded-[2.5rem] hover:bg-white/20 transition-all text-center">
-            <div className="w-16 h-16 bg-slate-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <button onClick={() => setShowPasswordInput(true)} className="bg-white/10 backdrop-blur-lg border border-white/10 p-10 rounded-[2.5rem] hover:bg-white/20 transition-all text-center group">
+            <div className="w-16 h-16 bg-slate-700 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             </div>
             <h3 className="text-xl font-black text-white uppercase tracking-tighter">Gerência</h3>
           </button>
         </div>
+        
+        <p className="mt-12 text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em]">Acesso restrito para funcionários</p>
+
         {showPasswordInput && (
           <div className="fixed inset-0 bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 z-[600]">
             <div className="bg-slate-900 p-8 rounded-[2.5rem] w-full max-w-xs border border-white/10">
