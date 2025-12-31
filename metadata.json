@@ -1,0 +1,7 @@
+{
+  "name": "Copy of Merc. Rafael - Gestão Inteligente 0001",
+  "description": "Um sistema completo para pequenos mercados, com controle de estoque, PDV rápido, gestão de fiado e insights inteligentes.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
