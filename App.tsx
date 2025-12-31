@@ -108,6 +108,12 @@ const App: React.FC = () => {
 
   const handleAddProduct = async (p: Product) => {
     try {
+      // Se adicionar com estoque 0 ou menos, já excluímos ou não adicionamos (seguindo a regra)
+      if (p.stock <= 0) {
+        alert("Não é possível adicionar produtos com estoque zero.");
+        return;
+      }
+
       const { error } = await supabase.from('products').insert([{
         name: p.name,
         price: p.price,
@@ -127,14 +133,20 @@ const App: React.FC = () => {
   
   const handleUpdateProduct = async (p: Product) => {
     try {
-      const { error } = await supabase.from('products').update({
-        name: p.name,
-        price: p.price,
-        cost_price: p.costPrice,
-        stock: p.stock,
-        barcode: p.barcodes[0] || null
-      }).eq('id', p.id);
-      if (error) throw error;
+      // REGRA: Se o estoque chegar a 0 (ou menos na edição), excluir o produto
+      if (p.stock <= 0) {
+        const { error: delError } = await supabase.from('products').delete().eq('id', p.id);
+        if (delError) throw delError;
+      } else {
+        const { error } = await supabase.from('products').update({
+          name: p.name,
+          price: p.price,
+          cost_price: p.costPrice,
+          stock: p.stock,
+          barcode: p.barcodes[0] || null
+        }).eq('id', p.id);
+        if (error) throw error;
+      }
       await fetchData();
     } catch (e: any) {
       alert("Erro ao atualizar: " + e.message);
@@ -169,9 +181,16 @@ const App: React.FC = () => {
       for (const item of items) {
         const prod = products.find(p => p.id === item.productId);
         if (prod) {
-          await supabase.from('products')
-            .update({ stock: Math.max(0, prod.stock - item.quantity) })
-            .eq('id', item.productId);
+          const newStock = Math.max(0, prod.stock - item.quantity);
+          
+          // REGRA: Se o estoque chegar a 0, excluir do estoque
+          if (newStock <= 0) {
+            await supabase.from('products').delete().eq('id', item.productId);
+          } else {
+            await supabase.from('products')
+              .update({ stock: newStock })
+              .eq('id', item.productId);
+          }
         }
       }
 
