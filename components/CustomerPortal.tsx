@@ -20,30 +20,56 @@ const CustomerPortal: React.FC<CustomerPortalProps> = ({ products, onOrderSubmit
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Weight logic for portal
+  const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
+  const [pendingProduct, setPendingProduct] = useState<Product | null>(null);
+  const [weightInput, setWeightInput] = useState('');
+
   const filteredProducts = useMemo(() => {
     if (searchTerm.length < 2) return [];
-    // Filtro rigoroso: apenas produtos com estoque estritamente maior que zero
     return products.filter(p => 
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) && 
       p.stock > 0
     );
   }, [products, searchTerm]);
 
-  const addToCart = (p: Product) => {
-    if (p.stock <= 0) return; // Proteção adicional
+  const addToCart = (p: Product, quantity?: number) => {
+    if (p.stock <= 0) return;
+
+    if (p.unit === 'kg' && quantity === undefined) {
+      setPendingProduct(p);
+      setWeightInput('');
+      setIsWeightModalOpen(true);
+      return;
+    }
+
+    const finalQty = quantity || 1;
 
     setCart(prev => {
       const existing = prev.find(item => item.productId === p.id);
       if (existing) {
-        if (existing.quantity >= p.stock) {
+        const newQty = existing.quantity + finalQty;
+        if (newQty > p.stock) {
           alert("Limite de estoque atingido para este item.");
           return prev;
         }
-        return prev.map(item => item.productId === p.id ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * item.price } : item);
+        return prev.map(item => item.productId === p.id ? { ...item, quantity: newQty, total: newQty * item.price } : item);
       }
-      return [...prev, { productId: p.id, name: p.name, quantity: 1, price: p.price, total: p.price }];
+      return [...prev, { productId: p.id, name: p.name, quantity: finalQty, price: p.price, total: finalQty * p.price }];
     });
     setSearchTerm('');
+    setIsWeightModalOpen(false);
+  };
+
+  const handleConfirmWeight = () => {
+    const weight = parseFloat(weightInput.replace(',', '.'));
+    if (pendingProduct && weight > 0) {
+      addToCart(pendingProduct, weight);
+      setIsWeightModalOpen(false);
+      setPendingProduct(null);
+    } else {
+      alert("Informe um peso válido.");
+    }
   };
 
   const removeFromCart = (id: string) => {
@@ -110,6 +136,34 @@ const CustomerPortal: React.FC<CustomerPortalProps> = ({ products, onOrderSubmit
         <div className="bg-blue-600 text-white px-4 py-2 rounded-xl font-black text-xs">LISTA DE CASA</div>
       </header>
 
+      {isWeightModalOpen && (
+        <div className="fixed inset-0 z-[2000] bg-slate-950/90 backdrop-blur-xl flex items-center justify-center p-6">
+           <div className="bg-white rounded-[3rem] w-full max-w-sm p-10 space-y-8 animate-in zoom-in-95">
+              <div className="text-center">
+                <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-2">Item por Peso (Kg)</p>
+                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter leading-none">{pendingProduct?.name}</h3>
+              </div>
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block text-center">Quanto você precisa? (em Kg)</label>
+                <input 
+                  type="text" 
+                  autoFocus 
+                  inputMode="decimal"
+                  placeholder="0,000"
+                  className="w-full bg-slate-50 border-2 border-blue-100 rounded-3xl p-6 text-center text-4xl font-black text-blue-600 outline-none"
+                  value={weightInput}
+                  onChange={e => setWeightInput(e.target.value)}
+                />
+                <p className="text-center font-bold text-slate-400 text-xs">R$ {pendingProduct?.price.toFixed(2)} / kg</p>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => { setIsWeightModalOpen(false); setPendingProduct(null); }} className="flex-1 py-5 text-slate-400 font-black uppercase text-xs">Cancelar</button>
+                <button onClick={handleConfirmWeight} className="flex-1 bg-blue-600 text-white py-5 rounded-2xl font-black uppercase text-xs shadow-xl active:scale-95">Confirmar</button>
+              </div>
+           </div>
+        </div>
+      )}
+
       <main className="flex-1 p-4 lg:p-8 max-w-2xl mx-auto w-full space-y-6">
         {step === 'browsing' ? (
           <>
@@ -134,7 +188,10 @@ const CustomerPortal: React.FC<CustomerPortalProps> = ({ products, onOrderSubmit
                       onClick={() => addToCart(p)}
                       className="w-full p-4 flex justify-between items-center hover:bg-slate-50 border-b last:border-0"
                     >
-                      <span className="font-black text-slate-700 uppercase text-sm">{p.name}</span>
+                      <div className="text-left">
+                        <span className="font-black text-slate-700 uppercase text-sm block">{p.name}</span>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase">Venda por {p.unit}</span>
+                      </div>
                       <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg font-black text-xs">R$ {p.price.toFixed(2)} +</span>
                     </button>
                   ))}
@@ -154,17 +211,23 @@ const CustomerPortal: React.FC<CustomerPortalProps> = ({ products, onOrderSubmit
                     <p className="font-black text-[10px] uppercase tracking-widest">Lista vazia</p>
                   </div>
                 ) : (
-                  cart.map(item => (
-                    <div key={item.productId} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
-                      <div>
-                        <p className="font-black text-slate-700 uppercase text-xs">{item.name}</p>
-                        <p className="text-[10px] text-slate-400 font-bold">{item.quantity}x R$ {item.price.toFixed(2)}</p>
+                  cart.map(item => {
+                    const product = products.find(p => p.id === item.productId);
+                    const isKg = product?.unit === 'kg';
+                    return (
+                      <div key={item.productId} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
+                        <div>
+                          <p className="font-black text-slate-700 uppercase text-xs">{item.name}</p>
+                          <p className="text-[10px] text-slate-400 font-bold">
+                            {isKg ? item.quantity.toFixed(3) : item.quantity}{isKg ? 'kg' : 'x'} R$ {item.price.toFixed(2)}
+                          </p>
+                        </div>
+                        <button onClick={() => removeFromCart(item.productId)} className="text-rose-500 p-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                        </button>
                       </div>
-                      <button onClick={() => removeFromCart(item.productId)} className="text-rose-500 p-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                      </button>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
               <div className="p-6 bg-slate-900 text-white flex justify-between items-center">

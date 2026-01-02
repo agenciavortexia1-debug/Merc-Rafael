@@ -21,6 +21,11 @@ const POS: React.FC<POSProps> = ({ products, customers, onCompleteSale, onLogout
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   
+  // Logic for products sold by KG
+  const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
+  const [pendingProduct, setPendingProduct] = useState<Product | null>(null);
+  const [weightInput, setWeightInput] = useState('');
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -66,39 +71,62 @@ const POS: React.FC<POSProps> = ({ products, customers, onCompleteSale, onLogout
     return () => clearInterval(interval);
   }, [orders.length]);
 
-  const addToCart = (product: Product) => {
+  const addToCart = (product: Product, quantity?: number) => {
     if (product.stock <= 0) {
       alert("Sem produto no estoque.");
       return;
     }
 
+    // Check if it's a KG product and quantity isn't provided
+    if (product.unit === 'kg' && quantity === undefined) {
+      setPendingProduct(product);
+      setWeightInput('');
+      setIsWeightModalOpen(true);
+      return;
+    }
+
+    const finalQty = quantity || 1;
+
     if (audioRef.current) {
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch(() => {});
     }
+
     setCart(prev => {
       const existing = prev.find(item => item.productId === product.id);
       if (existing) {
-        if (existing.quantity >= product.stock) {
+        const newQty = existing.quantity + finalQty;
+        if (newQty > product.stock) {
           alert(`Limite de estoque atingido para ${product.name}`);
           return prev;
         }
         return prev.map(item => 
           item.productId === product.id 
-            ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * (item.price || 0) }
+            ? { ...item, quantity: newQty, total: newQty * (item.price || 0) }
             : item
         );
       }
       return [...prev, {
         productId: product.id,
         name: product.name,
-        quantity: 1,
+        quantity: finalQty,
         price: product.price || 0,
-        total: product.price || 0
+        total: finalQty * (product.price || 0)
       }];
     });
     setScannerValue('');
     setSearchResults([]);
+  };
+
+  const handleConfirmWeight = () => {
+    const weight = parseFloat(weightInput.replace(',', '.'));
+    if (pendingProduct && weight > 0) {
+      addToCart(pendingProduct, weight);
+      setIsWeightModalOpen(false);
+      setPendingProduct(null);
+    } else {
+      alert("Informe um peso válido.");
+    }
   };
 
   const handleSearch = (query: string) => {
@@ -111,11 +139,7 @@ const POS: React.FC<POSProps> = ({ products, customers, onCompleteSale, onLogout
     
     const product = matches[0];
     if (product) {
-      if (product.stock <= 0) {
-        alert("Sem produto no estoque.");
-      } else {
-        addToCart(product);
-      }
+      addToCart(product);
     }
   };
 
@@ -161,6 +185,36 @@ const POS: React.FC<POSProps> = ({ products, customers, onCompleteSale, onLogout
   return (
     <div className="flex flex-col h-[calc(100vh-140px)] lg:h-[calc(100vh-100px)] max-w-4xl mx-auto relative">
       {isCameraOpen && <CameraScanner onScan={(barcode) => { handleSearch(barcode); setIsCameraOpen(false); }} onClose={() => setIsCameraOpen(false)} isBatch={false} />}
+
+      {/* Weight Input Modal */}
+      {isWeightModalOpen && (
+        <div className="fixed inset-0 z-[2000] bg-slate-950/90 backdrop-blur-xl flex items-center justify-center p-6">
+           <div className="bg-white rounded-[3rem] w-full max-w-sm p-10 space-y-8 animate-in zoom-in-95">
+              <div className="text-center">
+                <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-2">Item por Peso (Kg)</p>
+                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter leading-none">{pendingProduct?.name}</h3>
+              </div>
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block text-center">Informe o peso (Kg)</label>
+                <input 
+                  type="text" 
+                  autoFocus 
+                  inputMode="decimal"
+                  placeholder="0,000"
+                  className="w-full bg-slate-50 border-2 border-blue-100 rounded-3xl p-6 text-center text-4xl font-black text-blue-600 outline-none"
+                  value={weightInput}
+                  onChange={e => setWeightInput(e.target.value)}
+                  onKeyPress={e => e.key === 'Enter' && handleConfirmWeight()}
+                />
+                <p className="text-center font-bold text-slate-400 text-xs">R$ {pendingProduct?.price.toFixed(2)} / kg</p>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => { setIsWeightModalOpen(false); setPendingProduct(null); }} className="flex-1 py-5 text-slate-400 font-black uppercase text-xs">Cancelar</button>
+                <button onClick={handleConfirmWeight} className="flex-1 bg-blue-600 text-white py-5 rounded-2xl font-black uppercase text-xs shadow-xl shadow-blue-500/20 border-b-4 border-blue-800 active:scale-95">Confirmar</button>
+              </div>
+           </div>
+        </div>
+      )}
 
       {/* PDV Header */}
       <div className="flex items-center bg-white p-3 lg:p-5 rounded-3xl lg:rounded-[2rem] border-2 border-slate-100 shadow-sm gap-3 mb-4 sticky top-0 z-[100] mx-2 lg:mx-0">
@@ -211,10 +265,10 @@ const POS: React.FC<POSProps> = ({ products, customers, onCompleteSale, onLogout
                   <div className="text-left">
                     <p className="font-black text-slate-800 uppercase text-xs">{p.name}</p>
                     <p className={`text-[10px] font-bold uppercase ${p.stock <= 0 ? 'text-rose-500' : 'text-slate-400'}`}>
-                      {p.stock <= 0 ? 'SEM PRODUTO NO ESTOQUE' : `ESTOQUE: ${p.stock}`}
+                      {p.stock <= 0 ? 'SEM PRODUTO NO ESTOQUE' : `ESTOQUE: ${p.stock.toFixed(p.unit === 'kg' ? 3 : 0)} ${p.unit}`}
                     </p>
                   </div>
-                  <p className="font-black text-blue-600 text-sm">R$ {p.price.toFixed(2)}</p>
+                  <p className="font-black text-blue-600 text-sm">R$ {p.price.toFixed(2)} / {p.unit}</p>
                 </button>
               ))}
             </div>
@@ -247,20 +301,26 @@ const POS: React.FC<POSProps> = ({ products, customers, onCompleteSale, onLogout
               <p className="mt-4 font-black text-slate-400 text-[10px] uppercase tracking-widest">Aguardando Produtos...</p>
             </div>
           ) : (
-            cart.map(item => (
-              <div key={item.productId} className="flex justify-between items-center p-4 bg-white border-2 border-slate-50 rounded-2xl">
-                <div className="flex-1">
-                  <p className="font-black text-sm text-slate-800 uppercase truncate pr-4">{item.name}</p>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">{item.quantity} x R$ {item.price.toFixed(2)}</p>
+            cart.map(item => {
+              const product = products.find(p => p.id === item.productId);
+              const isKg = product?.unit === 'kg';
+              return (
+                <div key={item.productId} className="flex justify-between items-center p-4 bg-white border-2 border-slate-50 rounded-2xl">
+                  <div className="flex-1">
+                    <p className="font-black text-sm text-slate-800 uppercase truncate pr-4">{item.name}</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">
+                      {isKg ? item.quantity.toFixed(3) : item.quantity} {isKg ? 'kg' : 'x'} R$ {item.price.toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <p className="font-black text-slate-900 text-lg tracking-tighter">R$ {item.total.toFixed(2)}</p>
+                    <button onClick={() => setCart(cart.filter(i => i.productId !== item.productId))} className="p-2 text-rose-500 bg-rose-50 rounded-xl">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <p className="font-black text-slate-900 text-lg tracking-tighter">R$ {item.total.toFixed(2)}</p>
-                  <button onClick={() => setCart(cart.filter(i => i.productId !== item.productId))} className="p-2 text-rose-500 bg-rose-50 rounded-xl">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                  </button>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
@@ -307,9 +367,10 @@ const POS: React.FC<POSProps> = ({ products, customers, onCompleteSale, onLogout
                       {order.items.map((it, idx) => {
                         const prod = products.find(p => p.id === it.productId);
                         const isOutOfStock = !prod || prod.stock <= 0;
+                        const isKg = prod?.unit === 'kg';
                         return (
                           <p key={idx} className={`text-[10px] font-bold uppercase ${isOutOfStock ? 'text-rose-500 line-through' : 'text-slate-600'}`}>
-                            {it.quantity}x {it.name} {isOutOfStock ? '(SEM ESTOQUE)' : ''}
+                            {isKg ? it.quantity.toFixed(3) : it.quantity}{isKg ? 'kg' : 'x'} {it.name} {isOutOfStock ? '(SEM ESTOQUE)' : ''}
                           </p>
                         );
                       })}

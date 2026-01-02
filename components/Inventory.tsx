@@ -21,7 +21,8 @@ const Inventory: React.FC<InventoryProps> = ({ products, onAddProduct, onUpdateP
     price: '',
     costPrice: '',
     barcode: '',
-    quantity: ''
+    quantity: '',
+    unit: 'un' as 'un' | 'kg'
   });
 
   const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -34,7 +35,8 @@ const Inventory: React.FC<InventoryProps> = ({ products, onAddProduct, onUpdateP
         price: product.price.toString(),
         costPrice: product.costPrice.toString(),
         barcode: product.barcodes[0] || '',
-        quantity: product.stock.toString()
+        quantity: product.stock.toString(),
+        unit: product.unit || 'un'
       });
     } else {
       setEditingProduct(null);
@@ -43,7 +45,8 @@ const Inventory: React.FC<InventoryProps> = ({ products, onAddProduct, onUpdateP
         price: '',
         costPrice: '',
         barcode: '',
-        quantity: ''
+        quantity: '',
+        unit: 'un'
       });
     }
     setIsModalOpen(true);
@@ -61,10 +64,10 @@ const Inventory: React.FC<InventoryProps> = ({ products, onAddProduct, onUpdateP
       category: 'Geral',
       price: parseFloat(formData.price) || 0,
       costPrice: parseFloat(formData.costPrice) || 0,
-      stock: parseInt(formData.quantity) || 0,
+      stock: parseFloat(formData.quantity) || 0,
       minStock: 2,
-      unit: 'un',
-      barcodes: [formData.barcode] // Agora tratamos como um código principal
+      unit: formData.unit,
+      barcodes: [formData.barcode]
     };
 
     if (editingProduct) {
@@ -120,9 +123,9 @@ const Inventory: React.FC<InventoryProps> = ({ products, onAddProduct, onUpdateP
           >
             <div className="flex justify-between items-start mb-4">
               <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${p.stock <= p.minStock ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                {p.stock} em estoque
+                {p.stock} {p.unit} em estoque
               </span>
-              <p className="font-black text-xl tracking-tighter text-slate-900">R$ {p.price.toFixed(2)}</p>
+              <p className="font-black text-xl tracking-tighter text-slate-900">R$ {p.price.toFixed(2)} / {p.unit}</p>
             </div>
             <h4 className="font-black text-slate-800 uppercase text-lg leading-tight mb-1 truncate">{p.name}</h4>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Cód: {p.barcodes[0] || '---'}</p>
@@ -149,20 +152,29 @@ const Inventory: React.FC<InventoryProps> = ({ products, onAddProduct, onUpdateP
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Nome do Produto</label>
-                <input 
-                  type="text" 
-                  required 
-                  className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-blue-500 font-black text-xl outline-none" 
-                  value={formData.name} 
-                  onChange={e => setFormData({ ...formData, name: e.target.value })} 
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Nome do Produto</label>
+                  <input 
+                    type="text" 
+                    required 
+                    className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-blue-500 font-black text-xl outline-none" 
+                    value={formData.name} 
+                    onChange={e => setFormData({ ...formData, name: e.target.value })} 
+                  />
+                </div>
+                <div>
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Unidade</label>
+                   <div className="grid grid-cols-2 gap-2">
+                     <button type="button" onClick={() => setFormData({...formData, unit: 'un'})} className={`py-4 rounded-xl font-black uppercase text-xs border-4 transition-all ${formData.unit === 'un' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-50 border-transparent text-slate-400'}`}>Unidade</button>
+                     <button type="button" onClick={() => setFormData({...formData, unit: 'kg'})} className={`py-4 rounded-xl font-black uppercase text-xs border-4 transition-all ${formData.unit === 'kg' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-50 border-transparent text-slate-400'}`}>Quilo (Kg)</button>
+                   </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Preço de Compra</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Preço de Compra (/{formData.unit})</label>
                   <input 
                     type="number" 
                     step="0.01" 
@@ -172,7 +184,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, onAddProduct, onUpdateP
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Preço de Venda</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Preço de Venda (/{formData.unit})</label>
                   <input 
                     type="number" 
                     step="0.01" 
@@ -203,9 +215,10 @@ const Inventory: React.FC<InventoryProps> = ({ products, onAddProduct, onUpdateP
                   </button>
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Quantidade em Estoque</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Quantidade em Estoque ({formData.unit})</label>
                   <input 
                     type="number" 
+                    step={formData.unit === 'kg' ? "0.001" : "1"}
                     required
                     className="w-full px-6 py-4 rounded-2xl bg-emerald-50 border-2 border-emerald-100 font-black text-emerald-600 text-xl outline-none" 
                     value={formData.quantity} 

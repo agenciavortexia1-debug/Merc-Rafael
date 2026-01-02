@@ -10,7 +10,7 @@ export interface Product {
   costPrice: number;
   stock: number;
   minStock: number;
-  unit: string;
+  unit: 'un' | 'kg';
   barcodes: string[];
 }
 

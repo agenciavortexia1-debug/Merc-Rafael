@@ -27,7 +27,6 @@ const App: React.FC = () => {
   const [showPasswordInput, setShowPasswordInput] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
 
-  // Verificação de acesso direto via QR Code para clientes
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('view') === 'customer') {
@@ -55,19 +54,15 @@ const App: React.FC = () => {
       if (sErr) console.error("Erro na tabela sales:", sErr);
       if (cErr) console.error("Erro na tabela customers:", cErr);
 
-      if (pErr || sErr || cErr) {
-        throw new Error("Erro de conexão. Verifique se as tabelas existem no Supabase.");
-      }
-
       const mappedProducts: Product[] = (productsData || []).map(p => ({
         id: p.id,
         name: p.name,
         category: p.category || 'Geral',
-        price: Number(p.price || 0),
-        costPrice: Number(p.cost_price || 0),
-        stock: Number(p.stock || 0),
-        minStock: Number(p.min_stock || 0),
-        unit: p.unit || 'un',
+        price: parseFloat(p.price || 0),
+        costPrice: parseFloat(p.cost_price || 0),
+        stock: parseFloat(p.stock || 0),
+        minStock: parseFloat(p.min_stock || 0),
+        unit: (p.unit as 'un' | 'kg') || 'un',
         barcodes: p.barcode ? [p.barcode] : []
       }));
 
@@ -75,22 +70,22 @@ const App: React.FC = () => {
         id: c.id,
         name: c.name,
         phone: c.phone || '',
-        totalDebt: Number(c.total_debt || 0),
+        totalDebt: parseFloat(c.total_debt || 0),
         history: Array.isArray(c.history) ? c.history : []
       }));
 
       const mappedSales: Sale[] = (salesData || []).map(s => ({
         id: s.id,
         date: s.created_at,
-        total: Number(s.total || 0),
+        total: parseFloat(s.total || 0),
         paymentMethod: (s.payment_method as any) || 'Dinheiro',
         customerId: s.customer_id,
         items: (s.sale_items || []).map((item: any) => ({
           productId: item.product_id,
           name: item.name,
-          quantity: Number(item.quantity || 0),
-          price: Number(item.price || 0),
-          total: Number(item.total || 0)
+          quantity: parseFloat(item.quantity || 0),
+          price: parseFloat(item.price || 0),
+          total: parseFloat(item.total || 0)
         }))
       }));
 
@@ -108,7 +103,6 @@ const App: React.FC = () => {
 
   const handleAddProduct = async (p: Product) => {
     try {
-      // Se adicionar com estoque 0 ou menos, já excluímos ou não adicionamos (seguindo a regra)
       if (p.stock <= 0) {
         alert("Não é possível adicionar produtos com estoque zero.");
         return;
@@ -133,7 +127,6 @@ const App: React.FC = () => {
   
   const handleUpdateProduct = async (p: Product) => {
     try {
-      // REGRA: Se o estoque chegar a 0 (ou menos na edição), excluir o produto
       if (p.stock <= 0) {
         const { error: delError } = await supabase.from('products').delete().eq('id', p.id);
         if (delError) throw delError;
@@ -143,7 +136,8 @@ const App: React.FC = () => {
           price: p.price,
           cost_price: p.costPrice,
           stock: p.stock,
-          barcode: p.barcodes[0] || null
+          barcode: p.barcodes[0] || null,
+          unit: p.unit
         }).eq('id', p.id);
         if (error) throw error;
       }
@@ -171,7 +165,7 @@ const App: React.FC = () => {
           sale_id: saleId,
           product_id: i.productId,
           name: i.name,
-          quantity: i.quantity,
+          quantity: i.quantity, // Agora enviando decimal
           price: i.price,
           total: i.total
         }))
@@ -182,8 +176,6 @@ const App: React.FC = () => {
         const prod = products.find(p => p.id === item.productId);
         if (prod) {
           const newStock = Math.max(0, prod.stock - item.quantity);
-          
-          // REGRA: Se o estoque chegar a 0, excluir do estoque
           if (newStock <= 0) {
             await supabase.from('products').delete().eq('id', item.productId);
           } else {
@@ -215,6 +207,7 @@ const App: React.FC = () => {
       await fetchData();
     } catch (e: any) {
       alert("Falha no checkout: " + e.message);
+      console.error(e);
     }
   };
 
@@ -244,7 +237,6 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    // Ao sair, limpamos o parâmetro da URL para não prender o próximo login no portal do cliente
     if (window.location.search.includes('view=customer')) {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
