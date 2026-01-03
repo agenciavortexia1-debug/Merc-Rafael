@@ -17,6 +17,7 @@ const POS: React.FC<POSProps> = ({ products, customers, onCompleteSale, onLogout
   const [cart, setCart] = useState<SaleItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<'Dinheiro' | 'Cartão' | 'Fiado' | 'Pix'>('Dinheiro');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  const [cashPaid, setCashPaid] = useState<string>(''); // Novo estado para troco
   const [showSuccess, setShowSuccess] = useState(false);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -157,6 +158,7 @@ const POS: React.FC<POSProps> = ({ products, customers, onCompleteSale, onLogout
     setShowSuccess(true);
     setCart([]);
     setSelectedCustomerId('');
+    setCashPaid('');
     setPaymentMethod('Dinheiro');
     setIsCheckoutOpen(false);
     setTimeout(() => setShowSuccess(false), 2000); 
@@ -181,6 +183,7 @@ const POS: React.FC<POSProps> = ({ products, customers, onCompleteSale, onLogout
 
   const totalGeral = cart.reduce((acc, i) => acc + (i.total || 0), 0);
   const pendingCount = orders.filter(o => o.status === 'pending').length;
+  const changeValue = parseFloat(cashPaid) > totalGeral ? parseFloat(cashPaid) - totalGeral : 0;
 
   return (
     <div className="flex flex-col h-[calc(100vh-140px)] lg:h-[calc(100vh-100px)] max-w-4xl mx-auto relative">
@@ -419,7 +422,7 @@ const POS: React.FC<POSProps> = ({ products, customers, onCompleteSale, onLogout
            <div className="bg-white rounded-t-[3rem] lg:rounded-[3rem] w-full max-w-lg p-8 lg:p-12 space-y-8 animate-in slide-in-from-bottom duration-300">
              <div className="flex justify-between items-center">
                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">FINALIZAR</h3>
-               <button onClick={() => setIsCheckoutOpen(false)} className="p-3 bg-slate-100 rounded-2xl"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+               <button onClick={() => { setIsCheckoutOpen(false); setCashPaid(''); }} className="p-3 bg-slate-100 rounded-2xl"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
              </div>
              <div className="space-y-6">
                 <div>
@@ -432,17 +435,47 @@ const POS: React.FC<POSProps> = ({ products, customers, onCompleteSale, onLogout
                     ))}
                   </div>
                 </div>
+
+                {paymentMethod === 'Dinheiro' && (
+                  <div className="space-y-4 animate-in zoom-in-95">
+                    <div className="bg-slate-50 p-6 rounded-[2rem] border-2 border-slate-100">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block text-center">Valor Pago pelo Cliente</label>
+                      <input 
+                        type="text" 
+                        inputMode="decimal"
+                        autoFocus
+                        placeholder="0,00"
+                        className="w-full bg-white border-2 border-blue-100 rounded-2xl p-5 text-center text-4xl font-black text-blue-600 outline-none"
+                        value={cashPaid}
+                        onChange={e => setCashPaid(e.target.value.replace(',', '.'))}
+                      />
+                    </div>
+                    {parseFloat(cashPaid) > 0 && (
+                      <div className="bg-emerald-500 p-6 rounded-[2rem] text-center shadow-xl shadow-emerald-500/20">
+                         <p className="text-[10px] font-black text-emerald-100 uppercase tracking-widest mb-1">Troco do Cliente</p>
+                         <p className="text-4xl font-black text-white tracking-tighter">R$ {changeValue.toFixed(2)}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {paymentMethod === 'Fiado' && (
                   <select className="w-full p-5 rounded-2xl border-2 border-blue-200 font-black text-sm" value={selectedCustomerId} onChange={e => setSelectedCustomerId(e.target.value)}>
                     <option value="">-- CLIENTE --</option>
                     {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 )}
+                
                 <div className="bg-slate-900 p-8 rounded-3xl text-center">
                    <p className="text-[10px] font-black text-slate-500 uppercase mb-2">VALOR TOTAL</p>
                    <p className="text-5xl font-black text-emerald-400 tracking-tighter">R$ {totalGeral.toFixed(2)}</p>
                 </div>
-                <button onClick={handleCheckout} className="w-full py-8 bg-emerald-500 text-white rounded-[2rem] font-black text-2xl border-b-8 border-emerald-700 active:scale-95 transition-all">
+                
+                <button 
+                  onClick={handleCheckout} 
+                  disabled={paymentMethod === 'Dinheiro' && (parseFloat(cashPaid) < totalGeral || isNaN(parseFloat(cashPaid)))}
+                  className="w-full py-8 bg-emerald-500 text-white rounded-[2rem] font-black text-2xl border-b-8 border-emerald-700 active:scale-95 transition-all disabled:opacity-30"
+                >
                   CONCLUIR VENDA
                 </button>
              </div>
