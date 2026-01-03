@@ -118,19 +118,32 @@ const Fiado: React.FC<FiadoProps> = ({ customers, onAddCustomer, onRecordPayment
               <div className="space-y-3">
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] pl-2">Movimentações</h4>
                 {[...activeCustomer.history].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(entry => (
-                  <div key={entry.id} className="flex justify-between items-center p-5 bg-white border-2 border-slate-50 rounded-[1.5rem] shadow-sm animate-in slide-in-from-bottom-2">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black ${entry.type === 'DEBIT' ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                        {entry.type === 'DEBIT' ? '↓' : '↑'}
+                  <div key={entry.id} className="p-5 bg-white border-2 border-slate-50 rounded-[1.5rem] shadow-sm animate-in slide-in-from-bottom-2 space-y-4">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black ${entry.type === 'DEBIT' ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                          {entry.type === 'DEBIT' ? '↓' : '↑'}
+                        </div>
+                        <div>
+                          <p className="font-black text-slate-800 uppercase text-xs">{entry.description}</p>
+                          <p className="text-[10px] text-slate-400 font-bold">{new Date(entry.date).toLocaleDateString('pt-BR')} às {new Date(entry.date).toLocaleTimeString('pt-BR')}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-black text-slate-800 uppercase text-xs">{entry.description}</p>
-                        <p className="text-[10px] text-slate-400 font-bold">{new Date(entry.date).toLocaleDateString('pt-BR')} às {new Date(entry.date).toLocaleTimeString('pt-BR')}</p>
-                      </div>
+                      <p className={`text-lg font-black tracking-tighter ${entry.type === 'DEBIT' ? 'text-rose-600' : 'text-emerald-600'}`}>
+                        {entry.type === 'DEBIT' ? '+' : '-'} R$ {entry.amount.toFixed(2)}
+                      </p>
                     </div>
-                    <p className={`text-lg font-black tracking-tighter ${entry.type === 'DEBIT' ? 'text-rose-600' : 'text-emerald-600'}`}>
-                      {entry.type === 'DEBIT' ? '+' : '-'} R$ {entry.amount.toFixed(2)}
-                    </p>
+
+                    {/* Exibição dos Itens da Compra */}
+                    {entry.type === 'DEBIT' && entry.items && entry.items.length > 0 && (
+                      <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-50">
+                        {entry.items.map((item, idx) => (
+                          <span key={idx} className="text-[9px] font-black text-slate-500 bg-slate-50 px-2 py-1 rounded-lg uppercase border border-slate-100">
+                            {item.quantity % 1 !== 0 ? item.quantity.toFixed(3) : item.quantity}x {item.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

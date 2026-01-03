@@ -165,7 +165,7 @@ const App: React.FC = () => {
           sale_id: saleId,
           product_id: i.productId,
           name: i.name,
-          quantity: i.quantity, // Agora enviando decimal
+          quantity: i.quantity,
           price: i.price,
           total: i.total
         }))
@@ -195,7 +195,8 @@ const App: React.FC = () => {
             description: `Venda #${saleId.substring(0,4)}`,
             amount: total,
             type: 'DEBIT',
-            saleId: saleId
+            saleId: saleId,
+            items: items // Itens agora são salvos no histórico
           }];
           await supabase.from('customers').update({
             total_debt: client.totalDebt + total,
