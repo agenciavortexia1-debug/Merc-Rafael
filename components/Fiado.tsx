@@ -6,10 +6,11 @@ interface FiadoProps {
   customers: Customer[];
   onAddCustomer: (name: string, phone: string) => void;
   onRecordPayment: (customerId: string, amount: number) => void;
+  onDeleteCustomer: (customerId: string) => Promise<void>;
   role: UserRole;
 }
 
-const Fiado: React.FC<FiadoProps> = ({ customers, onAddCustomer, onRecordPayment, role }) => {
+const Fiado: React.FC<FiadoProps> = ({ customers, onAddCustomer, onRecordPayment, onDeleteCustomer, role }) => {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPaymentInputOpen, setIsPaymentInputOpen] = useState(false);
@@ -17,9 +18,13 @@ const Fiado: React.FC<FiadoProps> = ({ customers, onAddCustomer, onRecordPayment
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   const activeCustomer = useMemo(() => {
-    return customers.find(c => c.id === selectedCustomerId) || null;
+    const customer = customers.find(c => c.id === selectedCustomerId) || null;
+    // Reset confirmation text when switching customers
+    return customer;
   }, [customers, selectedCustomerId]);
 
   const handlePaymentSubmit = (e: React.FormEvent) => {
@@ -32,13 +37,33 @@ const Fiado: React.FC<FiadoProps> = ({ customers, onAddCustomer, onRecordPayment
     setIsPaymentInputOpen(false);
   };
 
+  const handleDelete = async () => {
+    if (!activeCustomer || isDeleting) return;
+    
+    if (deleteConfirmText !== activeCustomer.name) {
+      alert("O nome digitado não corresponde ao nome do cliente.");
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await onDeleteCustomer(activeCustomer.id);
+      setSelectedCustomerId(null);
+      setDeleteConfirmText('');
+    } catch (err) {
+      // Erro já tratado no App.tsx
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const filteredCustomers = customers.filter(c => 
     c.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full pb-10">
-      {/* Lista de Clientes - Mobile: Full Width se nada selecionado | Desktop: Sidebar */}
+      {/* Lista de Clientes */}
       <div className={`lg:col-span-1 flex flex-col space-y-4 ${selectedCustomerId ? 'hidden lg:flex' : 'flex'}`}>
         <div className="flex justify-between items-center px-2">
           <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Clientes</h2>
@@ -59,7 +84,7 @@ const Fiado: React.FC<FiadoProps> = ({ customers, onAddCustomer, onRecordPayment
             <div className="text-center p-10 opacity-30 italic font-bold text-sm uppercase">Nenhum cliente</div>
           ) : (
             filteredCustomers.map(customer => (
-              <button key={customer.id} onClick={() => setSelectedCustomerId(customer.id)} className={`w-full p-6 flex items-center justify-between rounded-[2rem] border-2 transition-all active:scale-95 ${selectedCustomerId === customer.id ? 'bg-blue-600 border-blue-600 text-white shadow-xl shadow-blue-500/30' : 'bg-white border-slate-100 hover:border-slate-200 shadow-sm'}`}>
+              <button key={customer.id} onClick={() => { setSelectedCustomerId(customer.id); setDeleteConfirmText(''); }} className={`w-full p-6 flex items-center justify-between rounded-[2rem] border-2 transition-all active:scale-95 ${selectedCustomerId === customer.id ? 'bg-blue-600 border-blue-600 text-white shadow-xl shadow-blue-500/30' : 'bg-white border-slate-100 hover:border-slate-200 shadow-sm'}`}>
                 <div className="text-left">
                   <p className="font-black text-lg leading-tight">{customer.name}</p>
                   <p className={`text-[10px] font-bold uppercase tracking-widest ${selectedCustomerId === customer.id ? 'text-blue-100' : 'text-slate-400'}`}>{customer.phone || 'Sem contato'}</p>
@@ -75,19 +100,50 @@ const Fiado: React.FC<FiadoProps> = ({ customers, onAddCustomer, onRecordPayment
         </div>
       </div>
 
-      {/* Detalhes do Cliente - Mobile: Full Width se selecionado | Desktop: Main Content */}
+      {/* Detalhes do Cliente */}
       <div className={`lg:col-span-2 ${selectedCustomerId ? 'block' : 'hidden lg:block'}`}>
         {activeCustomer ? (
           <div className="bg-white rounded-[3rem] border-2 border-slate-100 shadow-xl overflow-hidden flex flex-col h-full max-h-[85vh] lg:max-h-none">
             {/* Header Detalhes */}
             <div className="p-8 border-b border-slate-100 bg-slate-50 flex flex-col md:flex-row justify-between items-start gap-6">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 w-full">
                 <button onClick={() => setSelectedCustomerId(null)} className="lg:hidden p-3 bg-white rounded-2xl shadow-sm text-slate-400 active:scale-90">
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m15 18-6-6 6-6"/></svg>
                 </button>
-                <div>
-                  <h3 className="text-3xl font-black text-slate-900 tracking-tighter leading-none">{activeCustomer.name}</h3>
-                  <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[10px] font-black uppercase mt-2 inline-block">{activeCustomer.phone}</span>
+                <div className="flex-1">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-3xl font-black text-slate-900 tracking-tighter leading-none">{activeCustomer.name}</h3>
+                      <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[10px] font-black uppercase mt-2 inline-block">{activeCustomer.phone}</span>
+                    </div>
+
+                    {/* Campo de Exclusão Substituindo o Botão Trash */}
+                    {role === 'ADMIN' && (
+                      <div className="bg-rose-50 p-4 rounded-2xl border border-rose-100 flex flex-col gap-2 min-w-[200px]">
+                        <label className="text-[9px] font-black text-rose-400 uppercase tracking-widest leading-none">Digite o nome para excluir</label>
+                        <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="Confirmar nome..."
+                            className="flex-1 bg-white border border-rose-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:ring-2 ring-rose-500/20"
+                            value={deleteConfirmText}
+                            onChange={(e) => setDeleteConfirmText(e.target.value)}
+                          />
+                          <button 
+                            onClick={handleDelete}
+                            disabled={isDeleting || deleteConfirmText !== activeCustomer.name}
+                            className={`px-4 py-2 rounded-xl font-black text-[10px] uppercase transition-all shadow-sm ${
+                              deleteConfirmText === activeCustomer.name 
+                                ? 'bg-rose-600 text-white active:scale-90 hover:bg-rose-700' 
+                                : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                            }`}
+                          >
+                            {isDeleting ? "..." : "EXCLUIR"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="bg-rose-50 p-6 rounded-[2rem] border-2 border-rose-100 w-full md:w-auto text-center md:text-right">
@@ -134,7 +190,6 @@ const Fiado: React.FC<FiadoProps> = ({ customers, onAddCustomer, onRecordPayment
                       </p>
                     </div>
 
-                    {/* Exibição dos Itens da Compra */}
                     {entry.type === 'DEBIT' && entry.items && entry.items.length > 0 && (
                       <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-50">
                         {entry.items.map((item, idx) => (

@@ -39,6 +39,7 @@ const App: React.FC = () => {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
+      console.log("[DEBUG] Buscando dados do servidor...");
       
       const [
         { data: productsData, error: pErr },
@@ -92,6 +93,7 @@ const App: React.FC = () => {
       setProducts(mappedProducts);
       setCustomers(mappedCustomers);
       setSales(mappedSales);
+      console.log("[DEBUG] Dados carregados:", { products: mappedProducts.length, customers: mappedCustomers.length, sales: mappedSales.length });
     } catch (err: any) {
       console.error("Erro crítico no fetchData:", err.message);
     } finally {
@@ -196,7 +198,7 @@ const App: React.FC = () => {
             amount: total,
             type: 'DEBIT',
             saleId: saleId,
-            items: items // Itens agora são salvos no histórico
+            items: items
           }];
           await supabase.from('customers').update({
             total_debt: client.totalDebt + total,
@@ -237,6 +239,45 @@ const App: React.FC = () => {
     }
   };
 
+  const handleDeleteCustomer = async (customerId: string) => {
+    console.log("[DEBUG] Iniciando tentativa de exclusão do cliente:", customerId);
+    try {
+      // Tentar excluir no banco de dados Supabase
+      const { error: deleteError } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', customerId);
+        
+      if (deleteError) {
+        console.error("[DEBUG] Erro retornado pelo Supabase:", deleteError);
+        throw deleteError;
+      }
+      
+      console.log("[DEBUG] Cliente removido com sucesso do banco.");
+      
+      // Atualizar estado local imediatamente para feedback visual instantâneo
+      setCustomers(prev => prev.filter(c => c.id !== customerId));
+      
+      // Recarregar dados para garantir consistência total
+      await fetchData();
+      
+      alert("Cliente excluído com sucesso!");
+    } catch (e: any) {
+      console.error("[DEBUG] Falha catastrófica na exclusão:", e);
+      let msg = "Não foi possível excluir o cliente.";
+      
+      // Código de erro PostgreSQL 23503 indica violação de chave estrangeira (vendas vinculadas)
+      if (e.code === '23503') {
+        msg += "\n\nEste cliente possui histórico de vendas ou movimentações vinculadas. Por segurança, o banco de dados impede a exclusão para não perder rastreabilidade financeira.";
+      } else {
+        msg += "\nErro: " + (e.message || "Desconhecido");
+      }
+      
+      alert(msg);
+      throw e; 
+    }
+  };
+
   const handleLogout = () => {
     if (window.location.search.includes('view=customer')) {
       window.history.replaceState({}, document.title, window.location.pathname);
@@ -253,7 +294,7 @@ const App: React.FC = () => {
       case 'DASHBOARD': return <Dashboard products={products} customers={customers} sales={sales} onViewChange={setCurrentView} />;
       case 'INVENTORY': return <Inventory products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onUpdateStock={()=>{}} />;
       case 'POS': return <POS products={products} customers={customers} onCompleteSale={handleCompleteSale} onLogout={handleLogout} />;
-      case 'FIADO': return <Fiado customers={customers} onAddCustomer={(n, p) => supabase.from('customers').insert([{ name: n, phone: p, total_debt: 0, history: [] }]).then(() => fetchData())} onRecordPayment={handleRecordPayment} role={role} />;
+      case 'FIADO': return <Fiado customers={customers} onAddCustomer={(n, p) => supabase.from('customers').insert([{ name: n, phone: p, total_debt: 0, history: [] }]).then(() => fetchData())} onRecordPayment={handleRecordPayment} onDeleteCustomer={handleDeleteCustomer} role={role} />;
       case 'SALES': return <SalesHistory sales={sales} />;
       default: return role === 'ADMIN' ? <Dashboard products={products} customers={customers} sales={sales} onViewChange={setCurrentView} /> : <POS products={products} customers={customers} onCompleteSale={handleCompleteSale} onLogout={handleLogout} />;
     }
